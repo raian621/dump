@@ -1,0 +1,5 @@
+bootstrap-migration-table.sql
+add-user-table.sql
+add-credentials-table.sql
+add-vault-table.sql
+add-provider-key.sql
