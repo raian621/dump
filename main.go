@@ -47,18 +47,39 @@ func applyMigrations(db *pgxpool.Pool) {
 }
 
 func getDbClient() *pgxpool.Pool {
-	db, err := pgxpool.New(context.Background(), getConnString())
+	mode := "prod"
+	if envMode, found := os.LookupEnv("MODE"); found {
+		mode = envMode
+	}
+
+	db, err := pgxpool.New(context.Background(), getConnString( /*requireSsl*/ mode == "prod" || mode == "staging"))
 	if err != nil {
 		panic(err)
 	}
 	return db
 }
 
-func getConnString() string {
-	return fmt.Sprintf(
-		"postgresql://%s:%s/%s?user=%s&password=%s", os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"), os.Getenv("DB_NAME"), os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"))
+func getConnString(requireSsl bool) string {
+	connStr := fmt.Sprintf(
+		"postgresql://%s:%s/%s?user=%s&password=%s", getDbEnvVar("DB_HOST", "127.0.0.1", false),
+		getDbEnvVar("DB_PORT", "1234", false), getDbEnvVar("DB_NAME", "postgres", false), getDbEnvVar("DB_USER", "postgres", false),
+		getDbEnvVar("DB_PASSWORD", "1234", false))
+	if requireSsl {
+		return fmt.Sprintf("%s&sslmode=%s", connStr, "require")
+	}
+
+	return connStr
+}
+
+func getDbEnvVar(name, defaultVal string, required bool) string {
+	if envVar, found := os.LookupEnv(name); !found {
+		if required {
+			panic(fmt.Errorf("required env var `%s` not found", name))
+		}
+		return defaultVal
+	} else {
+		return envVar
+	}
 }
 
 func getTokenTtls() (int, int) {
